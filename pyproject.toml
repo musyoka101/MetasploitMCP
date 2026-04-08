@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "metasploit-mcp"
+version = "1.0.0"
+description = "Metasploit MCP server — exposes MSF RPC as MCP tools for exploit execution, payload generation, session management, and auxiliary scanning."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.95.0",
+    "uvicorn[standard]>=0.22.0",
+    "pymetasploit3>=1.0.6",
+    "mcp>=1.6.0",
+    "fastmcp>=2.10.3",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
