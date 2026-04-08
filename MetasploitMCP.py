@@ -1913,7 +1913,7 @@ async def list_listeners() -> Dict[str, Any]:
                 job_name_or_info = (
                     job_info.get("name", "") + job_info.get("info", "")
                 ).lower()
-                if "exploit/multi/handler" in job_name_or_info:
+                if "multi/handler" in job_name_or_info:
                     is_handler = True
                 # Secondary check: presence of typical handler options
                 elif "payload" in datastore or (
@@ -1923,6 +1923,11 @@ async def list_listeners() -> Dict[str, Any]:
                     logger.debug(
                         f"Job {job_id_str} identified as potential handler via datastore options."
                     )
+            elif isinstance(job_info, str):
+                # MSF RPC sometimes returns a plain string e.g. "Exploit: multi/handler"
+                job_data["name"] = job_info
+                if "multi/handler" in job_info.lower():
+                    is_handler = True
 
             if is_handler:
                 logger.debug(f"Categorized job {job_id_str} as a handler.")
