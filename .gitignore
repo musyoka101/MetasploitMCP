@@ -35,4 +35,7 @@ desktop.ini
 # Python testing
 .pytest_cache/
 .coverage
-htmlcov/ 
+htmlcov/
+
+# uv lockfile — generated locally, not committed
+uv.lock
