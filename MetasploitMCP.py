@@ -680,6 +680,8 @@ async def _execute_module_rpc(
                 # Check jobs list for a match based on payload/lhost/lport
                 await asyncio.sleep(1.0)
                 jobs_list = await asyncio.to_thread(lambda: client.jobs.list)
+                if not isinstance(jobs_list, dict):
+                    jobs_list = {}
                 for jid, jinfo in jobs_list.items():
                     if (
                         isinstance(jinfo, dict)
@@ -725,6 +727,8 @@ async def _execute_module_rpc(
                     sessions_list = await asyncio.to_thread(
                         lambda: client.sessions.list
                     )
+                    if not isinstance(sessions_list, dict):
+                        sessions_list = {}
                     for s_id, s_info in sessions_list.items():
                         # Ensure comparison is robust (uuid might be str or bytes, info dict keys too)
                         s_id_str = str(s_id)
@@ -905,6 +909,11 @@ async def _execute_module_console(
                         "Invalid option",
                         "Unknown module",
                         "Failed to load",
+                        "The supplied module name is ambiguous",
+                        "uninitialized constant",
+                        "[-] Failed",
+                        "No module",
+                        "is not a valid",
                     ]
                 ):
                     error_msg = f"Error during setup command '{cmd}': {setup_output}"
