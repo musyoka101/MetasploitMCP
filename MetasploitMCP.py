@@ -2001,6 +2001,31 @@ async def start_listener(
             "message": "Invalid LPORT. Must be between 1 and 65535.",
         }
 
+    # Proactive duplicate port check — scan running jobs before attempting to bind
+    try:
+        _dup_client = get_msf_client()
+        _jobs = await asyncio.wait_for(
+            asyncio.to_thread(lambda: _dup_client.jobs.list), timeout=RPC_CALL_TIMEOUT
+        )
+        if isinstance(_jobs, dict):
+            for _jid, _jinfo in _jobs.items():
+                if isinstance(_jinfo, dict):
+                    _ds = _jinfo.get("datastore", {})
+                    if isinstance(_ds, dict):
+                        _existing_lport = _ds.get("LPORT")
+                        if _existing_lport is not None and int(_existing_lport) == lport:
+                            return {
+                                "status": "error",
+                                "message": (
+                                    f"Port {lport} is already in use by job {_jid} "
+                                    f"({_jinfo.get('name', 'unknown')}). "
+                                    "Stop the existing job first or choose a different port."
+                                ),
+                            }
+    except Exception:
+        # If the pre-flight check fails, proceed and let Metasploit surface the conflict
+        logger.debug("Duplicate port pre-flight check failed; proceeding with listener creation.")
+
     # Parse additional options gracefully
     try:
         parsed_additional_options = _parse_options_gracefully(additional_options)

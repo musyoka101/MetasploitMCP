@@ -55,9 +55,9 @@ class MockMsfRpcClient:
         # These are properties that return lists
         self.modules.exploits = ['windows/smb/ms17_010_eternalblue', 'unix/ftp/vsftpd_234_backdoor']
         self.modules.payloads = ['windows/meterpreter/reverse_tcp', 'linux/x86/shell/reverse_tcp']
-        # These are methods that return dicts
-        self.sessions.list = Mock(return_value={})
-        self.jobs.list = Mock(return_value={})
+        # These are properties that return dicts (not callables)
+        self.sessions.list = {}
+        self.jobs.list = {}
 
 class MockMsfConsole:
     def __init__(self, cid='test-console-id'):
@@ -420,11 +420,11 @@ class TestSessionManagement:
         session.write = Mock()
         session.stop = Mock()
         
-        # Override the default Mock with actual dict return values
-        client.sessions.list = Mock(return_value={
+        # sessions.list is a property — assign a plain dict, not a callable Mock
+        client.sessions.list = {
             "1": {"type": "meterpreter", "info": "Windows session"},
-            "2": {"type": "shell", "info": "Linux session"}
-        })
+            "2": {"type": "shell", "info": "Linux session"},
+        }
         client.sessions.session = Mock(return_value=session)
         
         with patch('MetasploitMCP.get_msf_client', return_value=client):
@@ -456,7 +456,7 @@ class TestSessionManagement:
     async def test_send_session_command_nonexistent(self, mock_session_environment):
         """Test sending command to non-existent session."""
         client, session = mock_session_environment
-        client.sessions.list.return_value = {}  # No sessions
+        client.sessions.list = {}  # No sessions — direct dict, not callable Mock
         
         result = await send_session_command(999, "whoami")
         
@@ -468,11 +468,14 @@ class TestSessionManagement:
         """Test session termination."""
         client, session = mock_session_environment
         
-        # Mock session disappearing after termination
-        client.sessions.list.side_effect = [
-            {"1": {"type": "meterpreter"}},  # Before termination
-            {}  # After termination
-        ]
+        # sessions.list is a property — simulate it disappearing after stop by using
+        # a side_effect on session.stop() to update the attribute directly.
+        client.sessions.list = {"1": {"type": "meterpreter"}}
+
+        def _remove_session():
+            client.sessions.list = {}
+
+        session.stop = Mock(side_effect=lambda: _remove_session())
         
         result = await terminate_session(1)
         
@@ -488,8 +491,8 @@ class TestListenerManagement:
         """Fixture providing mocked job management environment."""
         client = MockMsfRpcClient()
         
-        # Override the default Mock with actual dict return values
-        client.jobs.list = Mock(return_value={})
+        # jobs.list is a property — assign a plain dict, not a callable Mock
+        client.jobs.list = {}
         client.jobs.stop = Mock(return_value="stopped")
         
         with patch('MetasploitMCP.get_msf_client', return_value=client):
@@ -550,16 +553,47 @@ class TestListenerManagement:
         assert "Invalid LPORT" in result["message"]
 
     @pytest.mark.asyncio
+    async def test_start_listener_duplicate_port(self, mock_job_environment):
+        """Test that starting a listener on an already-used port returns an error."""
+        client, mock_rpc = mock_job_environment
+
+        # jobs.list is a property — assign a plain dict, not a callable Mock
+        client.jobs.list = {
+            "42": {
+                "name": "Exploit: multi/handler",
+                "datastore": {
+                    "LHOST": "0.0.0.0",
+                    "LPORT": 4444,
+                    "PAYLOAD": "windows/meterpreter/reverse_tcp",
+                },
+            }
+        }
+
+        result = await start_listener(
+            payload_type="windows/meterpreter/reverse_tcp",
+            lhost="192.168.1.100",
+            lport=4444,
+        )
+
+        assert result["status"] == "error"
+        assert "4444" in result["message"]
+        assert "already in use" in result["message"]
+        # _execute_module_rpc must NOT have been called
+        mock_rpc.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_stop_job(self, mock_job_environment):
         """Test stopping a job."""
         client, mock_rpc = mock_job_environment
         
-        # Mock job exists before stop, gone after stop
-        client.jobs.list.side_effect = [
-            {"1234": {"name": "Handler Job"}},  # Before stop
-            {}  # After stop  
-        ]
-        client.jobs.stop.return_value = "stopped"
+        # jobs.list is a property — simulate the job disappearing after stop by
+        # using a side_effect on jobs.stop() to update the attribute directly.
+        client.jobs.list = {"1234": {"name": "Handler Job"}}
+
+        def _remove_job(job_id_str):
+            client.jobs.list = {}
+
+        client.jobs.stop = Mock(side_effect=_remove_job)
         
         result = await stop_job(1234)
         
