@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # Mock the dependencies that aren't available in test environment
 sys.modules['uvicorn'] = Mock()
 sys.modules['fastapi'] = Mock()
-if 'mcp.server.fastmcp' not in sys.modules:
-    sys.modules['mcp.server.fastmcp'] = Mock()
+if 'fastmcp' not in sys.modules:
+    sys.modules['fastmcp'] = Mock()
 sys.modules['mcp.server.sse'] = Mock()
 sys.modules['pymetasploit3.msfrpc'] = Mock()
 sys.modules['starlette.applications'] = Mock()

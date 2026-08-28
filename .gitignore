@@ -36,6 +36,3 @@ desktop.ini
 .pytest_cache/
 .coverage
 htmlcov/
-
-# uv lockfile — generated locally, not committed
-uv.lock

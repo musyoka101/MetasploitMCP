@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 # --- Third-party Libraries ---
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 from pymetasploit3.msfrpc import MsfConsole, MsfRpcClient, MsfRpcError
 from starlette.applications import Starlette

@@ -31,10 +31,10 @@ class MockFastMCP:
             return func
         return decorator
 
-# Mock the MCP modules with our custom FastMCP
-mcp_server_fastmcp = Mock()
-mcp_server_fastmcp.FastMCP = MockFastMCP
-sys.modules['mcp.server.fastmcp'] = mcp_server_fastmcp
+# Mock standalone FastMCP while retaining MCP SDK transport/session mocks.
+fastmcp_module = Mock()
+fastmcp_module.FastMCP = MockFastMCP
+sys.modules['fastmcp'] = fastmcp_module
 sys.modules['mcp.server.sse'] = Mock()
 sys.modules['mcp.server.session'] = Mock()
 

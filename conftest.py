@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # ---------------------------------------------------------------------------
 # MockFastMCP — must be defined at module level so it is available before any
-# test file is imported.  A plain Mock() for mcp.server.fastmcp would cause
+# test file is imported.  A plain Mock() for fastmcp would cause
 # @mcp.tool() to return a Mock instead of the original async function, breaking
 # every integration test.  This class preserves decorated functions.
 # ---------------------------------------------------------------------------
@@ -27,20 +27,20 @@ class _MockFastMCP:
         return decorator
 
 
-# Build a proper mock for mcp.server.fastmcp that exposes MockFastMCP.
-_mcp_server_fastmcp_mock = Mock()
-_mcp_server_fastmcp_mock.FastMCP = _MockFastMCP
+# Build a proper fastmcp mock that exposes MockFastMCP.
+_fastmcp_mock = Mock()
+_fastmcp_mock.FastMCP = _MockFastMCP
 
 # Set it early — before any test file's module-level code runs.
 # Individual test files may *not* unconditionally override this; they should
-# use "if 'mcp.server.fastmcp' not in sys.modules" guards instead.
-sys.modules['mcp.server.fastmcp'] = _mcp_server_fastmcp_mock
+# use "if 'fastmcp' not in sys.modules" guards instead.
+sys.modules['fastmcp'] = _fastmcp_mock
 
 
 def pytest_configure(config):
     """Configure pytest with custom settings."""
     # Mock external dependencies that might not be available.
-    # mcp.server.fastmcp is handled above (module level) with a proper mock.
+    # fastmcp is handled above (module level) with a proper mock.
     mock_modules = [
         'uvicorn',
         'fastapi',
