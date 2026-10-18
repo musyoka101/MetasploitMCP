@@ -529,27 +529,36 @@ async def _get_module_object(module_type: str, module_name: str) -> Any:
 
 
 async def _set_module_options(module_obj: Any, options: Dict[str, Any]):
-    """Sets options on a module object, performing basic type guessing."""
+    """Set caller options and serialize array defaults for scalar-only MSF RPC."""
     logger.debug(
         f"Setting options for module {getattr(module_obj, 'fullname', '')}: {options}"
     )
-    for k, v in options.items():
-        # Basic type guessing
+    # pymetasploit3 forwards these defaults too, even if the caller omitted them.
+    effective_options = {
+        key: value for key, value in module_obj.runoptions.items()
+        if isinstance(value, list)
+    }
+    effective_options.update(options)
+    for k, v in effective_options.items():
         original_value = v
-        if isinstance(v, str):
-            if v.isdigit():
-                try:
-                    v = int(v)
-                except ValueError:
-                    pass  # Keep as string if large number or non-integer
-            elif v.lower() in ("true", "false"):
-                v = v.lower() == "true"
-            # Add more specific checks if needed (e.g., for file paths)
-        elif isinstance(v, (int, bool)):
-            pass  # Already correct type
-        # Add handling for other types like lists if necessary
-
         try:
+            is_array = module_obj.optioninfo(k).get("type") == "array"
+            if isinstance(v, list):
+                # Installed OptArray uses comma-separated strings on the wire.
+                if not is_array or any(not isinstance(item, str) or "," in item for item in v):
+                    raise TypeError("lists require an array option with string entries without commas")
+                v = ",".join(v)
+            elif isinstance(v, dict):
+                raise TypeError("nested option values are not supported by MSF RPC")
+            elif isinstance(v, str) and not is_array:
+                if v.isdigit():
+                    try:
+                        v = int(v)
+                    except ValueError:
+                        pass
+                elif v.lower() in ("true", "false"):
+                    v = v.lower() == "true"
+
             # Use lambda to capture current k, v for the thread
             await asyncio.to_thread(
                 lambda key=k, value=v: module_obj.__setitem__(key, value)

@@ -160,6 +160,42 @@ This tool provides direct access to Metasploit Framework capabilities, which inc
 3. Generate a payload: `generate_payload("windows/meterpreter/reverse_tcp", "exe", {"LHOST": "192.168.1.10", "LPORT": 4444})`
 4. Stop a handler: `stop_job(1)`
 
+### Array-valued RPC options
+
+The installed framework's `module.execute` RPC accepts scalar option values, but
+Meterpreter payload metadata supplies `AutoLoadExtensions` as an array. The shared
+RPC option setter serializes list-valued defaults and explicit lists for
+metadata-typed array options to the framework's comma-separated string form.
+For example, the Windows default `['priv', 'stdapi']` becomes `"priv,stdapi"`;
+Linux's `['stdapi']` becomes `"stdapi"`. Defaults are read from the selected module,
+not hardcoded or disabled. Caller overrides take precedence.
+
+This covers `start_listener`, job-mode `run_exploit`, `generate_payload`, and
+shared auxiliary/post RPC preparation. It does not change console-mode execution,
+tool names/signatures, dependencies or framework RPC validation.
+
+Prefer dictionary options for arrays; the legacy `key=value,key=value` parser
+uses commas to separate options, so it cannot represent comma-containing values:
+
+```python
+additional_options={"AutoLoadExtensions": ["stdapi", "priv"]}
+# Or use the native scalar form in a dictionary:
+additional_options={"AutoLoadExtensions": "stdapi,priv"}
+```
+
+List entries must be strings without embedded commas, and the option must have
+array metadata. Nested structures and lists for other option types fail rather
+than being blindly stringified. Array-typed strings (including numeric-looking
+strings) are preserved; existing scalar type guessing is unchanged elsewhere.
+The installed OptArray delimiter is comma; custom-delimiter modules are not
+covered by this conversion because RPC metadata does not expose their separator.
+
+The SDK omits empty payload strings when merging them into exploit options.
+An empty list serializes to an empty string and follows that same SDK behavior.
+Thus `AutoLoadExtensions=""` is not a reliable instruction to disable extension
+loading: omission can restore the framework's default. Normal calls need no
+empty-string workaround after this repair.
+
 ## Testing
 
 This project includes comprehensive unit and integration tests to ensure reliability and maintainability.
@@ -256,6 +292,22 @@ make test-debug
 - **`tests/test_tools_integration.py`**: Integration tests for all MCP tools with mocked Metasploit backend
 - **`conftest.py`**: Shared test fixtures and configuration
 - **`pytest.ini`**: Pytest configuration with coverage settings
+- **`tests/rpc_array_regression.py`**: Standalone offline regression using the real
+  installed FastMCP and pymetasploit3 implementations. Only RPC transport is a
+  fixture; no actual listener, target, session or executable payload is created.
+
+Run the array regression with the locked environment, outside pytest's global
+dependency mocks:
+
+```bash
+.venv/bin/python -I -B tests/rpc_array_regression.py
+```
+
+It checks Windows/Linux defaults, explicit lists and scalar overrides, invalid
+nested values, scalar compatibility, listener/job-exploit/generation tool calls,
+and auxiliary/post preparation. Generation writes only inert fixture text into
+temporary storage. A real framework handler start/stop test requires separate
+authorization and must bind only to loopback without connecting a client.
 
 ### Test Features
 

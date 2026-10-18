@@ -81,6 +81,9 @@ class MockMsfModule:
         
     def __setitem__(self, key, value):
         self.options[key] = value
+
+    def optioninfo(self, key):
+        return {'type': 'string'}
         
     def execute(self, payload=None):
         return {

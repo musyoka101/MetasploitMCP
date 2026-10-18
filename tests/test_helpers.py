@@ -163,6 +163,8 @@ class TestSetModuleOptions:
         """Fixture providing a mock module object."""
         module = Mock()
         module.fullname = 'exploit/test/module'
+        module.runoptions = {}
+        module.optioninfo.return_value = {'type': 'string'}
         module.__setitem__ = Mock()
         return module
 
